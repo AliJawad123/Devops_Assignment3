@@ -13,43 +13,32 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
+    - name: Set up SSH key for EC2
+      uses: webfactory/ssh-agent@v0.5.0
       with:
-        python-version: 3.8
+        ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-    - name: Install Python Dependencies and Apply Migrations
+    - name: Install Docker on EC2
       run: |
-        cd image-classification-mnist/backend
-        pip install -r requirements.txt
-        python manage.py makemigrations
-        python manage.py migrate
+        ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "sudo apt-get update && sudo apt-get install -y docker.io"
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 14
-
-    - name: Install Node.js Dependencies
+    - name: Install Docker Compose on EC2
       run: |
-        cd image-classification-mnist/frontend
-        npm install
+        ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose"
 
-    - name: Build React Frontend
+    - name: Build Backend Docker Image
       run: |
-        cd image-classification-mnist/frontend
-        npm run build
+        docker build -t backend:${{ github.sha }} image-classification-mnist/backend
+
+    - name: Build Frontend Docker Image
+      run: |
+        docker build -t frontend:${{ github.sha }} image-classification-mnist/frontend
 
     - name: Copy Files to EC2 Instance
       run: |
         scp -i Keys_for_all_instances.pem -r image-classification-mnist/backend ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }}:${{ secrets.TARGET_DIR }}/backend
-        scp -i Keys_for_all_instances.pem -r image-classification-mnist/frontend/build ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }}:${{ secrets.TARGET_DIR }}/frontend
+        scp -i Keys_for_all_instances.pem -r image-classification-mnist/frontend ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }}:${{ secrets.TARGET_DIR }}/frontend
 
-    - name: Restart Django Server on EC2
+    - name: Deploy Docker Compose on EC2
       run: |
-        ssh -i Keys_for_all_instances.pem ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/backend && python manage.py runserver" 2>&1 > ${{ github.workspace }}/backend/runserver_output.log
-        cat ${{ github.workspace }}/backend/runserver_output.log
-
-    - name: Restart Node.js Server on EC2
-      run: |
-        ssh -i Keys_for_all_instances.pem ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/frontend && npm start"
+        ssh -i Keys_for_all_instances.pem ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }} && docker-compose up -d"
