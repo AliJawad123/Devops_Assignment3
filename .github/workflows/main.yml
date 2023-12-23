@@ -1,51 +1,66 @@
 
-name: Node.js and React App Deployment
+name: Deploy to EC2
 
 on:
   push:
     branches:
-      - main  # Adjust the branch as needed
+      - main
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # You can change the OS based on your EC2 instance
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v2
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install Python Dependencies and Apply Migrations
+      run: |
+        cd image-classification-mnist/backend
+        pip install -r requirements.txt
+        python manage.py makemigrations
+        python manage.py migrate
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
         node-version: 14
 
-    - name: Install Dependencies
+    - name: Install Node.js Dependencies
       run: |
+        cd image-classification-mnist/frontend
         npm install
 
-    - name: Build React App
+    - name: Build React Frontend
       run: |
+        cd image-classification-mnist/frontend
         npm run build
 
-    - name: Copy Code to EC2
-      run: |
-        scp -o StrictHostKeyChecking=no -i path/to/your-key.pem -r path/to/your-repo-directory ec2-user@your-instance-ip:~/
+    - name: Copy Files to EC2 Instance
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.HOST_DNS }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "image-classification-mnist/backend"
+        target: "${{ secrets.TARGET_DIR }}/backend"
 
-    - name: SSH into EC2
-      run: |
-        ssh -i path/to/your-key.pem ec2-user@your-instance-ip 'mv ~/your-repo-directory /path/to/your-app-directory'
+    - name: Copy Frontend Build to EC2 Instance
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.HOST_DNS }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "image-classification-mnist/frontend/build"
+        target: "${{ secrets.TARGET_DIR }}/frontend"
 
-    - name: Setup Node.js on EC2
-      run: |
-        ssh -i path/to/your-key.pem ec2-user@your-instance-ip 'curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash -'
-        ssh -i path/to/your-key.pem ec2-user@your-instance-ip 'sudo apt-get install -y nodejs'
+    - name: Restart Django Server on EC2
+      run: ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/backend && python manage.py runserver"
 
-    - name: Install Dependencies on EC2
-      run: |
-        ssh -i path/to/your-key.pem ec2-user@your-instance-ip 'cd /path/to/your-app-directory && npm install'
-
-    - name: Start Node.js Server on EC2
-      run: |
-        ssh -i path/to/your-key.pem ec2-user@your-instance-ip 'cd /path/to/your-app-directory && npm start'
-
-    # Add additional steps for optional configurations, Nginx setup, etc.
+    - name: Restart Node.js Server on EC2
+      run: ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/frontend && npm start"
