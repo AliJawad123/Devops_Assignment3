@@ -61,11 +61,15 @@ jobs:
 
     - name: Restart Django Server on EC2
       run: |
-        ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/backend && python manage.py runserver" 2>&1
-
-    - name: Display Django Server Restart Output
-      run: |
+        echo "$EC2_SSH_KEY" > key.pem
+        chmod 600 key.pem
+        ssh -i key.pem $USERNAME@${HOST_DNS} "cd $TARGET_DIR/backend && python manage.py runserver" 2>&1 > ${{ github.workspace }}/backend/runserver_output.log
         cat ${{ github.workspace }}/backend/runserver_output.log
+      env:
+        EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        HOST_DNS: ${{ secrets.HOST_DNS }}
+        USERNAME: ${{ secrets.USERNAME }}
+        TARGET_DIR: ${{ secrets.TARGET_DIR }}
 
     - name: Restart Node.js Server on EC2
       run: |
