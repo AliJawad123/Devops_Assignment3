@@ -1,1 +1,1 @@
-From Testing when the Workflow is triggered it will deploy our Application to Ec2 instance (Testing) The Secrets it used for Connection is EC2_SSH_KEYT, HOST_DNST, USERNAME, TARGET_DIR, This Will Deploy our Application to Staging Ec2 Instance
+From Testing when the Workflow is triggered it will deploy our Application to Ec2 instance (Testing) The Secrets it used for Connection is EC2_SSH_KEYT, HOST_DNST, USERNAME, TARGET_DIR, This Will Deploy our Application to Testing Ec2 Instance
