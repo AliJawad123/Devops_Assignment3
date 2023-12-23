@@ -60,7 +60,9 @@ jobs:
         target: "${{ secrets.TARGET_DIR }}/frontend"
 
     - name: Restart Django Server on EC2
-      run: ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/backend && python manage.py runserver"
+      run: |
+        ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/backend && python manage.py runserver"
 
     - name: Restart Node.js Server on EC2
-      run: ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/frontend && npm start"
+      run: |
+        ssh -i ${{ secrets.EC2_SSH_KEY }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "cd ${{ secrets.TARGET_DIR }}/frontend && npm start"
