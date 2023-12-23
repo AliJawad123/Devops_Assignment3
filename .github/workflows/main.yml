@@ -61,9 +61,10 @@ jobs:
 
     - name: Restart Django Server on EC2
       run: |
-        echo "$EC2_SSH_KEY" > key.pem
-        chmod 600 key.pem
-        ssh -i key.pem $USERNAME@${HOST_DNS} "cd $TARGET_DIR/backend && python manage.py runserver" 2>&1 > ${{ github.workspace }}/backend/runserver_output.log
+        mkdir -p ${{ github.workspace }}/backend
+        echo "$EC2_SSH_KEY" > ${{ github.workspace }}/key.pem
+        chmod 600 ${{ github.workspace }}/key.pem
+        ssh -i ${{ github.workspace }}/key.pem $USERNAME@${HOST_DNS} "cd $TARGET_DIR/backend && python manage.py runserver" 2>&1 > ${{ github.workspace }}/backend/runserver_output.log
         cat ${{ github.workspace }}/backend/runserver_output.log
       env:
         EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
