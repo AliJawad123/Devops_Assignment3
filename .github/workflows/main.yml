@@ -1,0 +1,46 @@
+
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Set up SSH key for EC2
+      uses: webfactory/ssh-agent@v0.5.0
+      with:
+        ssh-private-key: ${{ secrets.EC2_SSH_KEYT }}
+
+    - name: Install Docker on EC2
+      run: |
+        ssh -i ${{ secrets.EC2_SSH_KEYT }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNST }} "sudo apt-get update && sudo apt-get install -y docker.io"
+
+    - name: Install Docker Compose on EC2
+      run: |
+        ssh -i ${{ secrets.EC2_SSH_KEYT }} ${{ secrets.USERNAME }}@${{ secrets.HOST_DNST }} "sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose"
+
+    - name: Build Backend Docker Image
+      run: |
+        docker build -t backend:${{ github.sha }} image-classification-mnist/backend
+
+    - name: Build Frontend Docker Image
+      run: |
+        docker build -t frontend:${{ github.sha }} image-classification-mnist/frontend
+
+    - name: Copy Files to EC2 Instance
+      run: |
+        scp -i Keys_for_all_instances.pem -r image-classification-mnist/backend ${{ secrets.USERNAME }}@${{ secrets.HOST_DNST }}:${{ secrets.TARGET_DIR }}/backend
+        scp -i Keys_for_all_instances.pem -r image-classification-mnist/frontend ${{ secrets.USERNAME }}@${{ secrets.HOST_DNST }}:${{ secrets.TARGET_DIR }}/frontend
+
+    - name: Deploy Docker Compose on EC2
+      run: |
+        ssh -i Keys_for_all_instances.pem ${{ secrets.USERNAME }}@${{ secrets.HOST_DNST }} "cd ${{ secrets.TARGET_DIR }} && docker-compose up -d"
+
